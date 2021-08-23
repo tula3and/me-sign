@@ -1,0 +1,16 @@
+{{define "sign"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "head" "Sign"}}
+<body>
+    {{template "header" "Sign"}}
+    <main>
+        <form method="POST">
+            <input type="text" placeholder="Your email address" required name="address" />
+            <button>Send the Verification</button>
+        </form>
+    </main>
+    {{template "footer"}}
+</body>
+</html>
+{{end}}
