@@ -1,0 +1,16 @@
+{{define "realSign"}}
+<!DOCTYPE html>
+<html lang="en">
+{{template "head" "RealSign"}}
+<body>
+    {{template "header" "RealSign"}}
+    <main>
+        <form method="POST">
+            <input type="text" placeholder="Your file name to send" required name="fileName" />
+            <button>Make your own sign</button>
+        </form>
+    </main>
+    {{template "footer"}}
+</body>
+</html>
+{{end}}

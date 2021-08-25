@@ -1,14 +1,13 @@
 package email
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/smtp"
 	"strings"
 
+	"github.com/tula3and/me-sign/sign"
 	"github.com/tula3and/me-sign/utils"
-)
-
-const (
-	FROM string = ""
 )
 
 func Verify(address string) bool {
@@ -26,17 +25,24 @@ func Verify(address string) bool {
 
 func send(to string) {
 	// https://support.google.com/mail/answer/7126229?p=BadCredentials
-	// Check this part before uploading to github
-	auth := smtp.PlainAuth("", FROM, "<pw>", "smtp.gmail.com")
+	data, err := ioutil.ReadFile("mainEmail.txt")
+	utils.HandleErr(err)
+
+	mainEmail := strings.Split(string(data), "/")
+	from := mainEmail[0]
+	pw := mainEmail[1]
+
+	auth := smtp.PlainAuth("", from, pw, "smtp.gmail.com")
 
 	tos := []string{to}
 
 	headerSubject := "Subject: [MeSign] Email Verification\r\n"
 	headerBlank := "\r\n"
-	body := "<body>"
+	emailHex := fmt.Sprintf("%x", to)
+	body := "http://localhost:4000/key?email=" + emailHex + "&signed=" + sign.Sign(emailHex, sign.Key())
 
 	msg := []byte(headerSubject + headerBlank + body)
 
-	err := smtp.SendMail("smtp.gmail.com:587", auth, FROM, tos, msg)
+	err = smtp.SendMail("smtp.gmail.com:587", auth, from, tos, msg)
 	utils.HandleErr(err)
 }
