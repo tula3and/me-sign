@@ -9,6 +9,8 @@ import (
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
+	"github.com/tula3and/me-sign/blockchain"
+	"github.com/tula3and/me-sign/db"
 	"github.com/tula3and/me-sign/email"
 	"github.com/tula3and/me-sign/sign"
 )
@@ -62,10 +64,9 @@ func key(rw http.ResponseWriter, r *http.Request) {
 			http.Redirect(rw, r, "/", http.StatusPermanentRedirect)
 		}
 	case "POST":
-		email := r.URL.Query().Get("email")
 		r.ParseForm()
 		fileName := r.Form.Get("fileName")
-		http.Redirect(rw, r, "/yourSign?email="+email+"&fileName="+fileName, http.StatusPermanentRedirect)
+		http.Redirect(rw, r, "/yourSign?fileName="+fileName, http.StatusPermanentRedirect)
 	}
 }
 
@@ -73,8 +74,14 @@ func key(rw http.ResponseWriter, r *http.Request) {
 func yourSign(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		//email := r.URL.Query().Get("email")
-		dataString := r.URL.Query().Get("fileName")
+		fileName := r.URL.Query().Get("fileName")
+		newKey := sign.CreatePrivKey()
+		encryptFileName := sign.Sign(fmt.Sprintf("%x", fileName), newKey)
+		num := blockchain.Blockchain().Height
+
+		blockchain.Blockchain().AddBlock(encryptFileName)
+
+		dataString := fmt.Sprintf("http://localhost%s/verify?num=%d&key=%s", port, num, sign.RestorePublicKey(newKey))
 
 		qrCode, _ := qr.Encode(dataString, qr.L, qr.Auto)
 		qrCode, _ = barcode.Scale(qrCode, 512, 512)
@@ -84,6 +91,8 @@ func yourSign(rw http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	defer db.Close()
+
 	templates = template.Must(template.ParseGlob(templateDir + "pages/*.gohtml"))
 	templates = template.Must(templates.ParseGlob(templateDir + "partials/*.gohtml"))
 	http.HandleFunc("/", home)
