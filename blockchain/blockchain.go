@@ -13,7 +13,8 @@ import (
 )
 
 type Block struct {
-	Data     string
+	FileName string
+	Email    string
 	Hash     string
 	PrevHash string
 	Height   int
@@ -39,9 +40,9 @@ func fromBytes(i interface{}, data []byte) {
 	utils.HandleErr(encoder)
 }
 
-func (b *blockchain) AddBlock(data string) {
-	block := Block{data, "", b.NewestHash, b.Height + 1}
-	payload := block.Data + block.PrevHash + fmt.Sprintf("%x", block.Height)
+func (b *blockchain) AddBlock(fileName, email string) {
+	block := Block{fileName, email, "", b.NewestHash, b.Height + 1}
+	payload := block.FileName + block.Email + block.PrevHash + fmt.Sprintf("%x", block.Height)
 	block.Hash = fmt.Sprintf("%x", sha256.Sum256([]byte(payload)))
 	db.SaveBlock(block.Hash, toBytes(block))
 	b.NewestHash = block.Hash
@@ -82,7 +83,7 @@ func Blockchain() *blockchain {
 			b = &blockchain{"", 0}
 			checkpoint := db.Checkpoint()
 			if checkpoint == nil {
-				b.AddBlock("Genesis")
+				b.AddBlock("Genesis", "None")
 			} else {
 				fromBytes(b, checkpoint)
 			}

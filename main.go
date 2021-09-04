@@ -64,9 +64,10 @@ func key(rw http.ResponseWriter, r *http.Request) {
 			http.Redirect(rw, r, "/", http.StatusPermanentRedirect)
 		}
 	case "POST":
+		email := r.URL.Query().Get("email")
 		r.ParseForm()
 		fileName := r.Form.Get("fileName")
-		http.Redirect(rw, r, "/yourSign?fileName="+fileName, http.StatusPermanentRedirect)
+		http.Redirect(rw, r, "/yourSign?email="+email+"fileName="+fileName, http.StatusPermanentRedirect)
 	}
 }
 
@@ -74,12 +75,14 @@ func key(rw http.ResponseWriter, r *http.Request) {
 func yourSign(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
+		email := r.URL.Query().Get("email")
 		fileName := r.URL.Query().Get("fileName")
 		newKey := sign.CreatePrivKey()
+		encryptEmail := sign.Sign(email, newKey)
 		encryptFileName := sign.Sign(fmt.Sprintf("%x", fileName), newKey)
 		num := blockchain.Blockchain().Height
 
-		blockchain.Blockchain().AddBlock(encryptFileName)
+		blockchain.Blockchain().AddBlock(encryptEmail, encryptFileName)
 
 		dataString := fmt.Sprintf("http://localhost%s/verify?num=%d&key=%s", port, num, sign.RestorePublicKey(newKey))
 
@@ -100,6 +103,7 @@ func main() {
 	http.HandleFunc("/sent", sent)
 	http.HandleFunc("/key", key)
 	http.HandleFunc("/yourSign", yourSign)
+	http.HandleFunc("/verify", yourSign)
 	fmt.Printf("Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
