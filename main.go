@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
@@ -13,6 +14,7 @@ import (
 	"github.com/tula3and/me-sign/db"
 	"github.com/tula3and/me-sign/email"
 	"github.com/tula3and/me-sign/sign"
+	"github.com/tula3and/me-sign/utils"
 )
 
 const (
@@ -84,12 +86,37 @@ func yourSign(rw http.ResponseWriter, r *http.Request) {
 
 		blockchain.Blockchain().AddBlock(encryptEmail, encryptFileName)
 
-		dataString := fmt.Sprintf("http://localhost%s/verify?num=%d&key=%s", port, num, sign.RestorePublicKey(newKey))
+		dataString := fmt.Sprintf("http://localhost%s/check?num=%d&key=%s", port, num, sign.RestorePublicKey(newKey))
 
 		qrCode, _ := qr.Encode(dataString, qr.L, qr.Auto)
 		qrCode, _ = barcode.Scale(qrCode, 512, 512)
 
 		png.Encode(rw, qrCode)
+	}
+}
+
+func check(rw http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		templates.ExecuteTemplate(rw, "check", nil)
+	case "POST":
+		num, err := strconv.Atoi(r.URL.Query().Get("num"))
+		utils.HandleErr(err)
+		len := blockchain.Blockchain().Height
+		target := blockchain.Blockchain().Blocks()[len-num]
+		key := r.URL.Query().Get("key")
+		r.ParseForm()
+		fileName := r.Form.Get("fileName")
+		email := r.Form.Get("email")
+		verifyFileName := sign.Verify(target.FileName, fileName, key)
+		verifyEmail := sign.Verify(target.Email, email, key)
+		var data string
+		if verifyFileName && verifyEmail {
+			data = "Success: this <" + fileName + "> exists on the block"
+		} else {
+			data = "Failed: this <" + fileName + "> does not exist on the block"
+		}
+		templates.ExecuteTemplate(rw, "sent", data)
 	}
 }
 
@@ -103,7 +130,7 @@ func main() {
 	http.HandleFunc("/sent", sent)
 	http.HandleFunc("/key", key)
 	http.HandleFunc("/yourSign", yourSign)
-	http.HandleFunc("/verify", yourSign)
+	http.HandleFunc("/check", check)
 	fmt.Printf("Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
