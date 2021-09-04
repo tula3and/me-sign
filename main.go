@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"image/png"
 	"log"
 	"net/http"
 
 	"github.com/tula3and/me-sign/email"
 	"github.com/tula3and/me-sign/sign"
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
 )
 
 const (
@@ -61,6 +64,16 @@ func key(rw http.ResponseWriter, r *http.Request) {
 			http.Redirect(rw, r, "/", http.StatusPermanentRedirect)
 		}
 	}
+}
+
+//create qrcode
+func qrcodeviewCodeHandler(w http.ResponseWriter, r *http.Request) {
+	dataString := r.FormValue("fileName")
+
+	qrCode, _ := qr.Encode(dataString, qr.L, qr.Auto)
+	qrCode, _ = barcode.Scale(qrCode, 512, 512)
+
+	png.Encode(w, qrCode)
 }
 
 func main() {
