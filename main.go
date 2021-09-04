@@ -7,10 +7,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/tula3and/me-sign/email"
-	"github.com/tula3and/me-sign/sign"
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
+	"github.com/tula3and/me-sign/email"
+	"github.com/tula3and/me-sign/sign"
 )
 
 const (
@@ -38,7 +38,6 @@ func make(rw http.ResponseWriter, r *http.Request) {
 func sent(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		r.ParseForm()
 		address := r.URL.Query().Get("email")
 		verify := email.Verify(address)
 		var data string
@@ -54,7 +53,6 @@ func sent(rw http.ResponseWriter, r *http.Request) {
 func key(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		r.ParseForm()
 		email := r.URL.Query().Get("email")
 		signed := r.URL.Query().Get("signed")
 		verify := sign.Verify(signed, email, sign.RestorePublicKey(sign.Key()))
@@ -63,17 +61,26 @@ func key(rw http.ResponseWriter, r *http.Request) {
 		} else {
 			http.Redirect(rw, r, "/", http.StatusPermanentRedirect)
 		}
+	case "POST":
+		email := r.URL.Query().Get("email")
+		r.ParseForm()
+		fileName := r.Form.Get("fileName")
+		http.Redirect(rw, r, "/yourSign?email="+email+"&fileName="+fileName, http.StatusPermanentRedirect)
 	}
 }
 
 //create qrcode
-func qrcodeviewCodeHandler(w http.ResponseWriter, r *http.Request) {
-	dataString := r.FormValue("fileName")
+func yourSign(rw http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		//email := r.URL.Query().Get("email")
+		dataString := r.URL.Query().Get("fileName")
 
-	qrCode, _ := qr.Encode(dataString, qr.L, qr.Auto)
-	qrCode, _ = barcode.Scale(qrCode, 512, 512)
+		qrCode, _ := qr.Encode(dataString, qr.L, qr.Auto)
+		qrCode, _ = barcode.Scale(qrCode, 512, 512)
 
-	png.Encode(w, qrCode)
+		png.Encode(rw, qrCode)
+	}
 }
 
 func main() {
@@ -83,6 +90,7 @@ func main() {
 	http.HandleFunc("/make", make)
 	http.HandleFunc("/sent", sent)
 	http.HandleFunc("/key", key)
+	http.HandleFunc("/yourSign", yourSign)
 	fmt.Printf("Listening on http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
