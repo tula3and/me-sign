@@ -17,7 +17,6 @@ type Block struct {
 	Email    string
 	Hash     string
 	PrevHash string
-	Height   int
 }
 
 type blockchain struct {
@@ -31,22 +30,22 @@ var once sync.Once
 func toBytes(i interface{}) []byte {
 	var blockBuffer bytes.Buffer
 	encoder := gob.NewEncoder(&blockBuffer)
-	utils.HandleErr(encoder.Encode(b))
+	utils.HandleErr(encoder.Encode(i))
 	return blockBuffer.Bytes()
 }
 
 func fromBytes(i interface{}, data []byte) {
-	encoder := gob.NewDecoder(bytes.NewReader(data)).Decode(b)
-	utils.HandleErr(encoder)
+	encoder := gob.NewDecoder(bytes.NewReader(data))
+	utils.HandleErr(encoder.Decode(i))
 }
 
 func (b *blockchain) AddBlock(fileName, email string) {
-	block := Block{fileName, email, "", b.NewestHash, b.Height + 1}
-	payload := block.FileName + block.Email + block.PrevHash + fmt.Sprintf("%x", block.Height)
+	block := Block{fileName, email, "", b.NewestHash}
+	payload := block.FileName + block.Email + block.PrevHash
 	block.Hash = fmt.Sprintf("%x", sha256.Sum256([]byte(payload)))
 	db.SaveBlock(block.Hash, toBytes(block))
 	b.NewestHash = block.Hash
-	b.Height = block.Height
+	b.Height += 1
 	db.SaveBlockchain(toBytes(b))
 }
 
@@ -62,7 +61,7 @@ func FindBlock(hash string) (*Block, error) {
 	return block, nil
 }
 
-func (b *blockchain) Blocks() []*Block {
+func Blocks(b *blockchain) []*Block {
 	var blocks []*Block
 	hashCursor := b.NewestHash
 	for {

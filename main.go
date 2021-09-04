@@ -69,7 +69,7 @@ func key(rw http.ResponseWriter, r *http.Request) {
 		email := r.URL.Query().Get("email")
 		r.ParseForm()
 		fileName := r.Form.Get("fileName")
-		http.Redirect(rw, r, "/yourSign?email="+email+"fileName="+fileName, http.StatusPermanentRedirect)
+		http.Redirect(rw, r, "/yourSign?email="+email+"&fileName="+fileName, http.StatusPermanentRedirect)
 	}
 }
 
@@ -79,14 +79,17 @@ func yourSign(rw http.ResponseWriter, r *http.Request) {
 	case "POST":
 		email := r.URL.Query().Get("email")
 		fileName := r.URL.Query().Get("fileName")
-		newKey := sign.CreatePrivKey()
-		encryptEmail := sign.Sign(email, newKey)
-		encryptFileName := sign.Sign(fmt.Sprintf("%x", fileName), newKey)
-		num := blockchain.Blockchain().Height
 
-		blockchain.Blockchain().AddBlock(encryptEmail, encryptFileName)
+		newKey := sign.CreatePrivKey()
+		encryptFileName := sign.Sign(fmt.Sprintf("%x", fileName), newKey)
+		encryptEmail := sign.Sign(email, newKey)
+		num := blockchain.Blockchain().Height + 1
+
+		blockchain.Blockchain().AddBlock(encryptFileName, encryptEmail)
 
 		dataString := fmt.Sprintf("http://localhost%s/check?num=%d&key=%s", port, num, sign.RestorePublicKey(newKey))
+
+		fmt.Println(dataString)
 
 		qrCode, _ := qr.Encode(dataString, qr.L, qr.Auto)
 		qrCode, _ = barcode.Scale(qrCode, 512, 512)
@@ -103,18 +106,20 @@ func check(rw http.ResponseWriter, r *http.Request) {
 		num, err := strconv.Atoi(r.URL.Query().Get("num"))
 		utils.HandleErr(err)
 		len := blockchain.Blockchain().Height
-		target := blockchain.Blockchain().Blocks()[len-num]
+		target := blockchain.Blocks(blockchain.Blockchain())[len-num]
 		key := r.URL.Query().Get("key")
 		r.ParseForm()
 		fileName := r.Form.Get("fileName")
 		email := r.Form.Get("email")
-		verifyFileName := sign.Verify(target.FileName, fileName, key)
-		verifyEmail := sign.Verify(target.Email, email, key)
+
+		verifyFileName := sign.Verify(target.FileName, fmt.Sprintf("%x", fileName), key)
+		verifyEmail := sign.Verify(target.Email, fmt.Sprintf("%x", email), key)
+
 		var data string
 		if verifyFileName && verifyEmail {
-			data = "Success: this <" + fileName + "> exists on the block"
+			data = "Success: this < " + fileName + " > exists on the block"
 		} else {
-			data = "Failed: this <" + fileName + "> does not exist on the block"
+			data = "Failed: this < " + fileName + " > does not exist on the block"
 		}
 		templates.ExecuteTemplate(rw, "sent", data)
 	}
